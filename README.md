@@ -88,7 +88,7 @@ The options:
 | Founder forks into their own GitHub | Railway + GitHub | To them | They pull |
 
 **Recommendation: private Docker image.** The workflow in `.github/workflows/image.yml` tests and pushes
-`ghcr.io/wombyz/switchboard` on every push to `main`. In Railway's template editor, set the service source to that
+`ghcr.io/ai-makeover/switchboard` on every push to `main`. In Railway's template editor, set the service source to that
 image and enter a GHCR username plus a read-only `read:packages` token. Railway stores those credentials hidden
 (founders can't see them, can't SSH in, can't change the image source; "Templates > Private Docker Images", read
 14 Nov 2026). The founder clicks Deploy, pastes their own Unipile key, Google client and email, and never touches
