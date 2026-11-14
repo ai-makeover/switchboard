@@ -13,8 +13,8 @@ CHANNELS = ("whatsapp", "linkedin", "instagram")
 # API client is what gets a personal number flagged.
 DEFAULT_LIMITS = {
     "whatsapp": {"min_gap_s": 40, "per_hour": 20, "per_day": 30},
-    "linkedin": {"min_gap_s": 60, "per_hour": 10, "per_day": 50},
-    "instagram": {"min_gap_s": 60, "per_hour": 10, "per_day": 50},
+    "linkedin": {"min_gap_s": 60, "per_hour": 10, "per_day": 30},
+    "instagram": {"min_gap_s": 60, "per_hour": 10, "per_day": 30},
 }
 
 
