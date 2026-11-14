@@ -69,7 +69,7 @@ say so first."
 
 ## Deploy on Railway
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/TzEHkA)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/switchboard)
 
 1. In your password manager, generate a 32-character password (letters and numbers) called "Switchboard".
 2. Deploy the template. It runs the public image `ghcr.io/ai-makeover/switchboard:latest` with a volume at `/data`
@@ -107,12 +107,12 @@ your WhatsApp account by itself. `v2` uses `https://api.unipile.com` and needs `
 This repo and its image are public, so a founder needs only Railway: no GitHub account, no repo invite. Every push to
 `main` builds `ghcr.io/ai-makeover/switchboard:latest` (and a tag per commit) through `.github/workflows/image.yml`.
 
-The template (`TzEHkA`) lives, unpublished, in the AI Makeover Railway workspace. It isn't listed in Railway's
-marketplace, but the link works for anyone. It was generated from a throwaway project running the image. Its
-variables are `AUTH_MODE=password`, `PORT=8000`, `ENABLED_CHANNELS`, `UNIPILE_API_VERSION=v2`,
-`UNIPILE_API_BASE=https://api.unipile.com`, the account IDs, and the per-channel `*_SENDS_PER_DAY=30`. Secrets never go
-in the template: the founder adds `UNIPILE_API_KEY` and `SWITCHBOARD_PASSWORD` after deploy. Edit it at
-railway.com > AI Makeover workspace > Templates.
+The template is published on Railway's marketplace as **Switchboard** (https://railway.com/deploy/switchboard),
+owned by the AI Makeover Railway workspace. It runs the image above with a volume at `/data` and a domain on port 8000.
+Its defaults are `AUTH_MODE=password`, `PORT=8000`, `ENABLED_CHANNELS=whatsapp`, `UNIPILE_API_VERSION=v2`,
+`UNIPILE_API_BASE=https://api.unipile.com` and `*_SENDS_PER_DAY=30`; `WHATSAPP_ACCOUNT_ID` is the one required input.
+Secrets never go in the template: the founder adds `UNIPILE_API_KEY` and `SWITCHBOARD_PASSWORD` after deploy. Edit it
+at railway.com > AI Makeover workspace > Templates.
 
 ## Develop
 

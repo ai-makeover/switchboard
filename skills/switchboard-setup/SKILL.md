@@ -122,7 +122,7 @@ With the Railway connector:
 2. `create-project` named `switchboard` in that workspace.
 3. `create-service` named `switchboard`, then `connect-service-source` with image
    `ghcr.io/ai-makeover/switchboard:latest`. This needs no GitHub access. If the image won't deploy, open the
-   **Deploy on Railway** template link instead (https://railway.com/deploy/TzEHkA), fill in the account IDs, deploy, then carry on
+   **Deploy on Railway** template link instead (https://railway.com/deploy/switchboard), fill in the account IDs, deploy, then carry on
    from step 4 below.
 4. `create-volume` on the service: mount path `/data`, 1024 MB. This is where Switchboard keeps its sign-in data.
 5. `generate-domain` on the service, target port `8000`. Note the address.
@@ -206,7 +206,7 @@ Then:
 
 | What happened | What you do | What they do |
 |---|---|---|
-| Railway made the service but never deployed | Check the source in `describe-service`; reconnect the image, or use the template link (https://railway.com/deploy/TzEHkA) | Nothing |
+| Railway made the service but never deployed | Check the source in `describe-service`; reconnect the image, or use the template link (https://railway.com/deploy/switchboard) | Nothing |
 | `status` says `key_missing` | Check `UNIPILE_API_KEY` is in Variables | Paste the key again, click Add |
 | `status` says `key_rejected` | Ask them for a new key | Make a new key in Unipile, paste it into `UNIPILE_API_KEY` |
 | `status` says `needs_relink` | Tell them plainly | Unipile > Accounts > Reconnect, scan the code or sign in again |
