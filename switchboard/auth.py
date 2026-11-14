@@ -399,7 +399,7 @@ class WebAuth:
                    f'Connect in Claude yourself.</p>')
         err = f'<div class="warn"><b>{html.escape(error)}</b></div>' if error else ""
         csrf = self.signer.dumps({"c": "login", "r": req, "x": nxt})
-        body = f"""<div class="card"><h1>Switchboard sign-in</h1>{who}
+        body = f"""<div class="card"><h1>Sign in</h1>{who}
 <form method="post" action="/login">
 <input type="hidden" name="csrf" value="{csrf}">
 <label class="k" for="pw">Owner password</label>

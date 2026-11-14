@@ -21,10 +21,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from fastmcp.server.auth.jwt_issuer import derive_jwt_key
+from mcp.types import Icon
 
 from . import sanitize
 from .auth import WebAuth, build_mcp_auth, identity_from_claims
-from .pages import message, page
+from .pages import STATIC, message, page, static_file
 from .config import Settings
 from .errors import SBError, guarded
 from .store import Store
@@ -125,8 +126,13 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
         mcp_auth = build_mcp_auth(s, client_storage=storage)
     web = web or WebAuth(s, store=db, provider=mcp_auth if s.auth_mode == "password" else None)
 
+    icons = [
+        Icon(src=f"{s.base_url}/icon.svg", mimeType="image/svg+xml", sizes=["any"]),
+        Icon(src=f"{s.base_url}/icon-512.png", mimeType="image/png", sizes=["512x512"]),
+        Icon(src=f"{s.base_url}/icon-192.png", mimeType="image/png", sizes=["192x192"]),
+    ]
     mcp = FastMCP("Switchboard", instructions=INSTRUCTIONS, auth=mcp_auth if with_auth else None,
-                  mask_error_details=True)
+                  mask_error_details=True, icons=icons, website_url=s.base_url)
 
     def require_owner() -> str:
         ident = owner()
@@ -404,6 +410,14 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
     @mcp.custom_route("/web/callback", methods=["GET"])
     async def web_callback(request: Request) -> Response:
         return await web.callback(request)
+
+    def _static_route(name: str) -> None:
+        @mcp.custom_route(f"/{name}", methods=["GET"])
+        async def _serve(request: Request) -> Response:
+            return static_file(name)
+
+    for _name in STATIC:  # brand icons and font, public on purpose
+        _static_route(_name)
 
     @mcp.custom_route("/healthz", methods=["GET"])
     async def healthz(request: Request) -> Response:
