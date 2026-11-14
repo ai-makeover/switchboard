@@ -40,7 +40,7 @@ linked devices raises the ban risk.
    - `UNIPILE_API_VERSION`: `v2`
    - `ENABLED_CHANNELS`: `whatsapp`
    - `SWITCHBOARD_SECRET`: leave the generated value.
-4. Click **Deploy**. When it's up, open the service > **Settings > Networking** and copy the domain
+4. Click **Deploy**. It shows as failed until the keys go in at step 4; that's expected. Open the service > **Settings > Networking** and copy the domain
    (something like `switchboard-production-1234.up.railway.app`).
 
 The template already includes a volume at `/data`. Don't remove it: it holds your drafts and sign-in state.
