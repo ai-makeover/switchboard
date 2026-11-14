@@ -110,8 +110,7 @@ def test_config_refuses_empty_allowlist(tmp_path):
         make_settings(tmp_path, AUTH_MODE="google", ALLOWED_EMAILS="", GOOGLE_CLIENT_ID="x", GOOGLE_CLIENT_SECRET="y")
     with pytest.raises(ConfigError):
         make_settings(tmp_path, AUTH_MODE="google", ALLOWED_EMAILS=OWNER)  # no client
-    with pytest.raises(ConfigError):
-        make_settings(tmp_path, SWITCHBOARD_PASSWORD="too-short")
+    assert make_settings(tmp_path, SWITCHBOARD_PASSWORD="too-short").password == ""  # boots, sign-in says set it
     with pytest.raises(ConfigError):
         make_settings(tmp_path, SWITCHBOARD_SECRET="short")
 

@@ -79,7 +79,13 @@ say so first."
    `SWITCHBOARD_PASSWORD` into your password manager.
 3. In Claude, add a custom connector with the URL `https://<domain>/mcp`, then Connect and paste the password.
 
-The server boots without the Unipile key; `status` tells you it's missing. Founder walkthrough:
+The server boots without the Unipile key or the password: `status` tells you the key is missing, and the sign-in
+page tells you to set `SWITCHBOARD_PASSWORD`. Without `SWITCHBOARD_SECRET` it makes its own on first boot and keeps
+it on the volume.
+
+**From Cowork with the Railway connector** (no template needed): create a project, `create-deployment` from this repo,
+attach a volume at `/data`, generate a domain on port 8000, and set the non-secret variables. The founder then pastes
+`UNIPILE_API_KEY` and `SWITCHBOARD_PASSWORD` into Railway themselves. The `switchboard-setup` skill does exactly this. Founder walkthrough:
 [docs/client-setup.md](docs/client-setup.md).
 
 ### Unipile v1 and v2

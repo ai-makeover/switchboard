@@ -71,6 +71,8 @@ def password_fingerprint(s: Settings) -> str:
 
 
 def password_matches(s: Settings, attempt: str) -> bool:
+    if not s.password:
+        return False  # not set up yet: nothing can match
     return hmac.compare_digest(_h("sb:" + (attempt or "")), _h("sb:" + s.password))
 
 
@@ -408,6 +410,10 @@ class WebAuth:
     async def login(self, request: Request) -> Response:
         if self.s.auth_mode != "password":
             return message("Not available", "This server signs in with " + self.s.auth_mode.title() + ".", 404)
+        if not self.s.password:
+            return message("Almost there", "This Switchboard has no password yet. In Railway, open the switchboard "
+                           "service > Variables, add SWITCHBOARD_PASSWORD (32 characters from your password manager), "
+                           "click Deploy, then come back and click Connect again.", 503)
         if request.method == "GET":
             req = request.query_params.get("req", "")
             nxt = request.query_params.get("next", "")

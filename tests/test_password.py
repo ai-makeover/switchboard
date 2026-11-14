@@ -204,3 +204,21 @@ def test_browser_login_for_confirm_page(app):
     r = tc.get("/login?next=https://evil.example.com")
     csrf = re.search(r'name="csrf" value="([^"]+)"', r.text).group(1)
     assert submit(tc, csrf, PASSWORD).headers["location"] == "/signed-in"
+
+
+def test_no_password_yet_boots_and_says_so(app):
+    tc, db, s, _ = app(SWITCHBOARD_PASSWORD="")
+    assert tc.get("/healthz").status_code == 200
+    _, _, path = start(tc)
+    r = tc.get("/login" + path)
+    assert r.status_code == 503 and "SWITCHBOARD_PASSWORD" in r.text
+    r = tc.post("/login", data={"csrf": "x", "password": ""})
+    assert r.status_code == 503
+    assert db.db.execute("SELECT COUNT(*) FROM oauth_codes").fetchone()[0] == 0
+
+
+def test_secret_is_generated_and_kept(tmp_path):
+    s1 = make_settings(tmp_path, "v1", SWITCHBOARD_SECRET="")
+    s2 = make_settings(tmp_path, "v1", SWITCHBOARD_SECRET="")
+    assert len(s1.secret) >= 32 and s1.secret == s2.secret
+    assert oct((tmp_path / ".switchboard_secret").stat().st_mode)[-3:] == "600"

@@ -31,6 +31,23 @@ AUTH_MODES = ("password", "google", "github")
 MIN_PASSWORD = 20
 
 
+def _stored_secret(data_dir: Path) -> str:
+    """No SWITCHBOARD_SECRET set: make one on first boot and keep it on the volume. It never leaves the server,
+    so nobody has to generate or paste it."""
+    import secrets as _secrets
+    path = data_dir / ".switchboard_secret"
+    try:
+        if path.exists():
+            return path.read_text().strip()
+        data_dir.mkdir(parents=True, exist_ok=True)
+        value = _secrets.token_urlsafe(48)
+        path.write_text(value)
+        path.chmod(0o600)
+        return value
+    except OSError as e:
+        raise ConfigError(f"can't store the server secret in {data_dir}: mount a volume there") from e
+
+
 @dataclass
 class Settings:
     base_url: str
@@ -66,9 +83,10 @@ class Settings:
             raise ConfigError("AUTH_MODE must be password, google or github")
         password, client_id, client_secret = "", "", ""
         if mode == "password":
+            # Missing or short: the server still boots, and the sign-in page says to set it in Railway.
             password = env("SWITCHBOARD_PASSWORD", "").strip()
             if len(password) < MIN_PASSWORD:
-                raise ConfigError(f"SWITCHBOARD_PASSWORD must be at least {MIN_PASSWORD} characters")
+                password = ""
             allowed = frozenset({"owner"})
         elif mode == "google":
             allowed = frozenset(e.strip().lower() for e in env("ALLOWED_EMAILS", "").split(",") if e.strip())
@@ -115,13 +133,9 @@ class Settings:
             }
 
         unipile_key = env("UNIPILE_API_KEY", "").strip()  # may be empty: the server boots and status says so
-        required = {
-            "SWITCHBOARD_SECRET": env("SWITCHBOARD_SECRET", "").strip(),
-        }
-        missing = [k for k, v in required.items() if not v]
-        if missing:
-            raise ConfigError("missing required variables: " + ", ".join(missing))
-        if len(required["SWITCHBOARD_SECRET"]) < 32:
+        data_dir = Path(env("DATA_DIR", "/data"))
+        secret = env("SWITCHBOARD_SECRET", "").strip() or _stored_secret(data_dir)
+        if len(secret) < 32:
             raise ConfigError("SWITCHBOARD_SECRET must be at least 32 characters")
 
         return cls(
@@ -131,13 +145,13 @@ class Settings:
             password=password,
             oauth_client_id=client_id,
             oauth_client_secret=client_secret,
-            secret=required["SWITCHBOARD_SECRET"],
+            secret=secret,
             unipile_version=version,
             unipile_base=ubase,
             unipile_key=unipile_key,
             enabled=enabled,
             account_ids=accounts,
-            data_dir=Path(env("DATA_DIR", "/data")),
+            data_dir=data_dir,
             limits=limits,
             drafts_per_hour=_int("DRAFTS_PER_HOUR", 30),
         )
