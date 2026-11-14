@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Switchboard</title>
+  <rect width="1024" height="1024" rx="232" fill="#ffffff"/>
+  <g transform="translate(512 512) scale(1.14) translate(-512 -512)">
+  <path d="M 336 448 C 336 760, 688 260, 688 576" fill="none" stroke="#FF8A1F" stroke-width="56" stroke-linecap="round"/>
+  <circle cx="336" cy="352" r="96" fill="#ffffff" stroke="#16161a" stroke-width="48"/>
+  <circle cx="336" cy="352" r="40" fill="#FF8A1F"/>
+  <circle cx="688" cy="672" r="96" fill="#ffffff" stroke="#16161a" stroke-width="48"/>
+  <circle cx="688" cy="672" r="40" fill="#16161a"/>
+</g>
+</svg>

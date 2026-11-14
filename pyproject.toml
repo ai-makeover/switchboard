@@ -17,3 +17,9 @@ test = ["pytest>=8", "pytest-asyncio>=0.23"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.setuptools.packages.find]
+include = ["switchboard*"]
+
+[tool.setuptools.package-data]
+switchboard = ["static/*"]
