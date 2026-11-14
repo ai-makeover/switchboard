@@ -69,22 +69,21 @@ say so first."
 
 ## Deploy on Railway
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/TEMPLATE_CODE)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/TzEHkA)
 
-*(The button goes live once the template is published; see "Publishing the template" below.)*
-
-1. Deploy. Railway generates `SWITCHBOARD_PASSWORD` and `SWITCHBOARD_SECRET`, adds a volume at `/data` and a
-   domain.
-2. In Railway > switchboard > Variables, paste your Unipile key into `UNIPILE_API_KEY` and click Deploy. Copy
-   `SWITCHBOARD_PASSWORD` into your password manager.
-3. In Claude, add a custom connector with the URL `https://<domain>/mcp`, then Connect and paste the password.
+1. In your password manager, generate a 32-character password (letters and numbers) called "Switchboard".
+2. Deploy the template. It runs the public image `ghcr.io/ai-makeover/switchboard:latest` with a volume at `/data`
+   and a domain on port 8000. Fill in the account IDs for the channels you use.
+3. In Railway > switchboard > Variables, add `UNIPILE_API_KEY` (your Unipile key) and `SWITCHBOARD_PASSWORD` (the
+   password from step 1).
+4. In Claude, add a custom connector with the URL `https://<domain>/mcp`, then Connect and enter the password.
 
 The server boots without the Unipile key or the password: `status` tells you the key is missing, and the sign-in
 page tells you to set `SWITCHBOARD_PASSWORD`. Without `SWITCHBOARD_SECRET` it makes its own on first boot and keeps
 it on the volume.
 
-**From Cowork with the Railway connector** (no template needed): create a project, `create-deployment` from this repo,
-attach a volume at `/data`, generate a domain on port 8000, and set the non-secret variables. The founder then pastes
+**From Cowork with the Railway connector** (no template needed): create a project, `create-service`, then
+`connect-service-source` with the image above, attach a volume at `/data`, generate a domain on port 8000, and set the non-secret variables. The founder then pastes
 `UNIPILE_API_KEY` and `SWITCHBOARD_PASSWORD` into Railway themselves. The `switchboard-setup` skill does exactly this. Founder walkthrough:
 [docs/client-setup.md](docs/client-setup.md).
 
@@ -103,40 +102,17 @@ your WhatsApp account by itself. `v2` uses `https://api.unipile.com` and needs `
 | Unipile key rotated or expired | `status` says `key_rejected` or `key_missing` | Paste the new key into Railway > Variables > `UNIPILE_API_KEY`, Deploy | Partly. You paste the key (the connector never handles secrets); Cowork can then redeploy and run `status` to confirm |
 | Password reset | Old password stops working everywhere | Generate a new 32-character password in your password manager, paste it into `SWITCHBOARD_PASSWORD`, Deploy, then Connect again in Claude | Partly. You paste the password; Cowork can redeploy |
 
-## Publishing the template (and the private-repo answer)
+## The image and the template
 
-**Can a founder deploy a template built on the private `ai-makeover/switchboard` repo without GitHub? No.**
-Railway can build a template from a private repo, but whoever deploys it has to connect their own GitHub to Railway
-and have access to that repo (Railway docs, "Create a Template > Private repo support", read 14 Nov 2026). Today
-Railway's GitHub app isn't installed on the `ai-makeover` org at all, so Railway can't read the repo even for us.
+This repo and its image are public, so a founder needs only Railway: no GitHub account, no repo invite. Every push to
+`main` builds `ghcr.io/ai-makeover/switchboard:latest` (and a tag per commit) through `.github/workflows/image.yml`.
 
-So, for founders who only have Railway:
-
-| Route | Founder needs | Source visible | Blocker today |
-|---|---|---|---|
-| **Public repo** (this repo, or a public `switchboard-template` mirror) | Railway only | Everyone | A decision; there's no secret in the code |
-| Private Docker image in the template (hidden registry credentials) | Railway only | No | The image has to be built: GitHub Actions on this account is blocked by a billing failure, and there's no Docker on the build Mac |
-| Template on the private repo | Railway + GitHub + repo invite | Invitees | Railway GitHub app on the org, plus an invite per founder |
-
-**Recommendation: a public repo.** It's the only route that works with one click and no GitHub today, Railway
-offers founders template updates for GitHub-sourced services, and a founder can read exactly what they're trusting
-with their WhatsApp. Keep this private repo as the working copy and mirror releases to a public
-`ai-makeover/switchboard-template` if you'd rather not publish the history.
-
-Then, once, in Railway:
-1. Install Railway's GitHub app on the org (railway.com > Account > Integrations > GitHub > Edit scope).
-2. New project > Deploy from GitHub repo > the public repo. Attach a volume at `/data`. Generate a domain.
-3. Variables:
-   - `AUTH_MODE=password`
-   - `SWITCHBOARD_PASSWORD=${{secret(32)}}`
-   - `SWITCHBOARD_SECRET=${{secret(64)}}`
-   - `UNIPILE_API_VERSION=v2`
-   - `UNIPILE_API_BASE=https://api.unipile.com`
-   - `ENABLED_CHANNELS=whatsapp`
-   - `PORT=8000`
-   - `WHATSAPP_ACCOUNT_ID`: a required input, not a secret
-   - `UNIPILE_API_KEY`: left empty, since the founder pastes it after deploy
-4. Settings > Generate Template (or `railway templates create`), then publish. Put its code in the button above.
+The template (`TzEHkA`) lives, unpublished, in the AI Makeover Railway workspace. It isn't listed in Railway's
+marketplace, but the link works for anyone. It was generated from a throwaway project running the image. Its
+variables are `AUTH_MODE=password`, `PORT=8000`, `ENABLED_CHANNELS`, `UNIPILE_API_VERSION=v2`,
+`UNIPILE_API_BASE=https://api.unipile.com`, the account IDs, and the per-channel `*_SENDS_PER_DAY=30`. Secrets never go
+in the template: the founder adds `UNIPILE_API_KEY` and `SWITCHBOARD_PASSWORD` after deploy. Edit it at
+railway.com > AI Makeover workspace > Templates.
 
 ## Develop
 

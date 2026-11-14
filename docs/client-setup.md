@@ -51,7 +51,7 @@ first 24 hours, don't start chats with strangers. Don't link another automation 
 1. Sign up at **railway.com** on your own account (Hobby plan). Use a workspace only you can see.
 2. Deploy Switchboard, either way:
    - **Template:** open the **Deploy on Railway** link AI Makeover gave you
-     (TEMPLATE_URL), fill in the account IDs, and Deploy.
+     (https://railway.com/deploy/TzEHkA), fill in the account IDs, and Deploy.
    - **By hand:** New project > **Docker image** > `ghcr.io/ai-makeover/switchboard:latest`. Add a **volume** at
      `/data` (1 GB). **Settings > Networking > Generate domain** on port `8000`.
 3. Service > **Variables**. None of these are secret:
