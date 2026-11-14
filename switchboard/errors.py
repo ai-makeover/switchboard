@@ -20,6 +20,7 @@ CODES = {
     "text_empty": "The draft text is empty.",
     "text_too_long": "The draft is too long (4000 characters max).",
     "draft_rate_limited": "Too many drafts this hour. Try again later.",
+    "unipile_key_missing": "No Unipile API key is set on the server yet. Paste it into Railway > Variables > UNIPILE_API_KEY.",
     "upstream_auth": "The messaging provider rejected the server's credentials.",
     "upstream_rate_limited": "The messaging provider is rate limiting. Try again shortly.",
     "upstream_error": "The messaging provider returned an error.",

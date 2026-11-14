@@ -147,8 +147,8 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
             try:
                 st = await up.account_status(ch)
             except SBError as e:
-                st = {"state": "key_rejected" if e.code == "upstream_auth" else
-                      "not_configured" if e.code == "account_not_configured" else "unknown"}
+                st = {"state": {"upstream_auth": "key_rejected", "unipile_key_missing": "key_missing",
+                                "account_not_configured": "not_configured"}.get(e.code, "unknown")}
             lim = s.limits[ch]
             row = {"channel": ch, "state": st["state"], "connected": st["state"] == "connected",
                    "sends_left_today": max(0, lim["per_day"] - db.sends_since(ch, 86400))}
@@ -158,6 +158,12 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
             elif st["state"] == "key_rejected":
                 row["fix"] = ("Unipile refused the server's API key. Create a new key in the Unipile dashboard and "
                               "paste it into Railway > switchboard > Variables > UNIPILE_API_KEY, then Deploy.")
+            elif st["state"] == "key_missing":
+                row["fix"] = ("No Unipile key yet. In Railway open switchboard > Variables, paste your Unipile API key "
+                              "into UNIPILE_API_KEY, then click Deploy.")
+            elif st["state"] == "not_configured":
+                row["fix"] = ("Unipile has no single account of this type. Set the account id variable "
+                              f"({ch.upper()}_ACCOUNT_ID) in Railway from the Unipile dashboard.")
             elif st["state"] == "provider_error":
                 row["fix"] = "Unipile reports a provider error. It usually clears itself; check again in 10 minutes."
             elif st["state"] == "subscription_locked":

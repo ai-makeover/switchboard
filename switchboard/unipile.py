@@ -73,6 +73,8 @@ class Unipile:
     # ---- transport -------------------------------------------------------------------------------
 
     async def _req(self, method: str, path: str, **kw) -> Any:
+        if not self.s.unipile_key:
+            raise SBError("unipile_key_missing")
         try:
             async with self._sem:
                 r = await self._client.request(method, path, **kw)

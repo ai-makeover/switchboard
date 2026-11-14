@@ -179,3 +179,13 @@ async def test_status_key_rejected_is_plain(harness):
     d = r.structured_content
     assert d["channels"][0]["state"] == "key_rejected" and "UNIPILE_API_KEY" in d["heartbeat"]
     assert FAKE_KEY not in json.dumps(d)
+
+
+async def test_boots_without_unipile_key(harness):
+    mcp, fake, *_ = harness("v1", UNIPILE_API_KEY="")
+    r, _ = await call(mcp, "status")
+    d = r.structured_content
+    assert d["channels"][0]["state"] == "key_missing" and "UNIPILE_API_KEY" in d["heartbeat"]
+    r, text = await call(mcp, "inbox")
+    assert r.is_error and text.startswith("unipile_key_missing")
+    assert fake.calls == []

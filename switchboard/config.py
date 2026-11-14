@@ -114,8 +114,8 @@ class Settings:
                 "per_day": _int(f"{p}_SENDS_PER_DAY", d["per_day"]),
             }
 
+        unipile_key = env("UNIPILE_API_KEY", "").strip()  # may be empty: the server boots and status says so
         required = {
-            "UNIPILE_API_KEY": env("UNIPILE_API_KEY", "").strip(),
             "SWITCHBOARD_SECRET": env("SWITCHBOARD_SECRET", "").strip(),
         }
         missing = [k for k, v in required.items() if not v]
@@ -134,7 +134,7 @@ class Settings:
             secret=required["SWITCHBOARD_SECRET"],
             unipile_version=version,
             unipile_base=ubase,
-            unipile_key=required["UNIPILE_API_KEY"],
+            unipile_key=unipile_key,
             enabled=enabled,
             account_ids=accounts,
             data_dir=Path(env("DATA_DIR", "/data")),
