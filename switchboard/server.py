@@ -178,7 +178,7 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
                 row["fix"] = "Unipile has locked API access: check the Unipile subscription and billing."
             channels.append(row)
         ok = all(c["connected"] for c in channels)
-        parts = [f"{c['channel'].title()} {'connected' if c['connected'] else c['state'].replace('_', ' ')}"
+        parts = [f"{CHANNEL_NAMES.get(c['channel'], c['channel'].title())} {'connected' if c['connected'] else c['state'].replace('_', ' ')}"
                  for c in channels]
         wa = next((c for c in channels if c["channel"] == "whatsapp"), None)
         if wa and wa["connected"]:

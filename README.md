@@ -38,7 +38,7 @@ The confirm page uses the same sign-in through a signed session cookie.
   and works once. Links in a draft are called out, and group sends are flagged.
 - **Drafts only go to chats that already exist.** A raw number, or a chat id the provider doesn't know, is refused.
 - **Pacing on the server.** WhatsApp: 40 s between sends, 20 an hour, 30 a day. LinkedIn and Instagram: 60 s,
-  10 an hour, 50 a day. Inside Unipile's published guidance. Override per channel with variables.
+  10 an hour, 30 a day. Inside Unipile's published guidance. Override per channel with variables.
 - **Inbound text is treated as hostile.** Links become `[link: domain]`; zero-width, bidi and tag characters are
   stripped; long whitespace collapses; every result says the content is data, not instructions (the Invariant Labs
   WhatsApp MCP exfiltration, Apr 2025).

@@ -161,7 +161,7 @@ async def test_status_flags_dropped_whatsapp(harness, version, bad):
     mcp, fake, *_ = harness(version)
     r, _ = await call(mcp, "status")
     d = r.structured_content
-    assert d["ok"] is True and d["heartbeat"].startswith("Switchboard OK: Whatsapp connected")
+    assert d["ok"] is True and d["heartbeat"].startswith("Switchboard OK: WhatsApp connected")
     assert "30 WhatsApp sends left today" in d["heartbeat"]
     fake.account_state = bad
     r, _ = await call(mcp, "status")
@@ -189,3 +189,11 @@ async def test_boots_without_unipile_key(harness):
     r, text = await call(mcp, "inbox")
     assert r.is_error and text.startswith("unipile_key_missing")
     assert fake.calls == []
+
+
+def test_default_send_caps_are_30_a_day_everywhere(tmp_path):
+    from conftest import make_settings
+    s = make_settings(tmp_path)
+    assert {c: lim["per_day"] for c, lim in s.limits.items()} == {"whatsapp": 30, "linkedin": 30, "instagram": 30}
+    s = make_settings(tmp_path, LINKEDIN_SENDS_PER_DAY="12")
+    assert s.limits["linkedin"]["per_day"] == 12 and s.limits["instagram"]["per_day"] == 30
