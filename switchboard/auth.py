@@ -46,7 +46,7 @@ from fastmcp.server.auth.providers.google import GoogleProvider, GoogleTokenVeri
 from fastmcp.server.auth.redirect_validation import matches_allowed_pattern
 
 from .config import Settings
-from .pages import message, page
+from .pages import icon, message, page
 
 log = logging.getLogger("switchboard.auth")
 
@@ -392,20 +392,23 @@ class WebAuth:
 
     # password login page (serves both Claude's connector sign-in and the confirm page)
     def _login_form(self, request: Request, req: str, nxt: str, client_name: str, error: str = "") -> Response:
-        who = ""
+        who = '<p class="lead">Enter the Switchboard password from your password manager.</p>'
         if req:
             label = html.escape(client_name[:60] or "An app")
-            who = (f'<p><b>{label}</b> wants to connect to your Switchboard. Only continue if you just clicked '
-                   f'Connect in Claude yourself.</p>')
-        err = f'<div class="warn"><b>{html.escape(error)}</b></div>' if error else ""
+            who = (f'<p class="lead"><b>{label}</b> wants to connect to your Switchboard. Only continue if you just '
+                   f'clicked Connect in Claude yourself.</p>')
+        invalid, err = "", ""
+        if error:
+            invalid = ' aria-invalid="true" aria-describedby="pw-error"'
+            err = f'<div class="error" id="pw-error">{icon("alert")}<span>{html.escape(error)}</span></div>'
         csrf = self.signer.dumps({"c": "login", "r": req, "x": nxt})
-        body = f"""<div class="card"><h1>Sign in</h1>{who}
+        body = f"""<div class="tile">{icon("shield")}</div><h1>Sign in</h1>{who}
 <form method="post" action="/login">
 <input type="hidden" name="csrf" value="{csrf}">
-<label class="k" for="pw">Owner password</label>
-<input id="pw" type="password" name="password" autocomplete="current-password" required autofocus>{err}
-<div class="row"><button class="go">Sign in</button></div></form></div>"""
-        return page("Switchboard sign-in", body, 401 if error else 200)
+<div class="field"><label for="pw">Owner password</label>
+<input id="pw" type="password" name="password" autocomplete="current-password" required autofocus{invalid}>{err}</div>
+<div class="actions"><button class="btn primary">Sign in</button></div></form>"""
+        return page("Sign in", body, 401 if error else 200)
 
     async def login(self, request: Request) -> Response:
         if self.s.auth_mode != "password":
@@ -413,7 +416,7 @@ class WebAuth:
         if not self.s.password:
             return message("Almost there", "This Switchboard has no password yet. In Railway, open the switchboard "
                            "service > Variables, add SWITCHBOARD_PASSWORD (32 characters from your password manager), "
-                           "click Deploy, then come back and click Connect again.", 503)
+                           "click Deploy, then come back and click Connect again.", 503, "warning", "key")
         if request.method == "GET":
             req = request.query_params.get("req", "")
             nxt = request.query_params.get("next", "")
@@ -470,7 +473,7 @@ class WebAuth:
             return message("Sign-in mismatch", "Open the confirm link again in this browser.", 400)
         code = request.query_params.get("code")
         if not code:
-            return message("Sign-in cancelled", "Nothing was sent.", 400)
+            return message("Sign-in cancelled", "Nothing was sent.", 400, "neutral", "info")
         _, token_url, _ = UPSTREAM[self.s.auth_mode]
         claims = None
         try:

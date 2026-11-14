@@ -25,7 +25,8 @@ from mcp.types import Icon
 
 from . import sanitize
 from .auth import WebAuth, build_mcp_auth, identity_from_claims
-from .pages import STATIC, message, page, static_file
+from .pages import STATIC, icon, message, page, static_file
+from .pages import status as status_page
 from .config import Settings
 from .errors import SBError, guarded
 from .store import Store
@@ -327,10 +328,15 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
     # ---- confirm page ----------------------------------------------------------------------------
 
     def state_page(row) -> Response:
-        msg = {"sent": "This message was already sent.", "discarded": "This draft was discarded.",
-               "expired": "This draft expired. Ask Claude for a new one.", "sending": "This message is being sent.",
-               "failed": "This send failed and was not retried. Ask Claude for a new draft."}.get(row["status"], "Closed.")
-        return page("Switchboard", f'<div class="card"><p>{html.escape(msg)}</p></div>')
+        st = row["status"]
+        title, text, tone, ic = {
+            "sent": ("Already sent", "This message was already sent.", "success", "check"),
+            "discarded": ("Discarded", "This draft was discarded. Nothing was sent.", "neutral", "trash"),
+            "expired": ("Draft expired", "Drafts last 24 hours. Ask Claude for a new one.", "warning", "clock"),
+            "sending": ("Sending", "This message is being sent.", "neutral", "send"),
+            "failed": ("Not sent", "This send failed and was not retried. Ask Claude for a new draft.", "danger", "x"),
+        }.get(st, ("Closed", "This draft is closed.", "neutral", "info"))
+        return message(title, text, 200, tone, ic)
 
     @mcp.custom_route("/confirm/{token}", methods=["GET", "POST"])
     async def confirm(request: Request) -> Response:
@@ -340,10 +346,10 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
                 return message("Signed out", "Open the confirm link again and sign in.", 401)
             return web.login_redirect(f"/confirm/{token}")
         if len(token) > 100:
-            return page("Not found", '<div class="card"><p>This link isn\'t valid.</p></div>', 404)
+            return message("Link not valid", "This confirm link isn't valid. Ask Claude for a new draft.", 404)
         row = db.by_token(token)
         if row is None:
-            return page("Not found", '<div class="card"><p>This link isn\'t valid.</p></div>', 404)
+            return message("Link not valid", "This confirm link isn't valid. Ask Claude for a new draft.", 404)
         if row["status"] != "pending":
             return state_page(row)
 
@@ -356,7 +362,7 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
             if action == "discard":
                 db.discard(row["id"])
                 log.info("draft discarded id=%s", row["id"])
-                return page("Discarded", '<div class="card"><p>Discarded. Nothing was sent.</p></div>')
+                return message("Discarded", "Nothing was sent.", 200, "neutral", "trash")
             if action == "send":
                 async with send_lock:
                     wait = db.pacing(row["channel"], s.limits[row["channel"]])
@@ -370,32 +376,36 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
                         except SBError as e:
                             db.finish(row["id"], "failed")
                             log.warning("send failed id=%s code=%s", row["id"], e.code)
-                            return page("Not sent", '<div class="card"><p>Not sent: the provider returned an '
-                                        'error. Ask Claude for a new draft.</p></div>', 502)
+                            return message("Not sent", "The provider returned an error. Nothing went out. "
+                                           "Ask Claude for a new draft.", 502)
                         db.record_send(row["channel"])
                         db.finish(row["id"], "sent")
                         log.info("draft sent id=%s channel=%s", row["id"], row["channel"])
-                        return page("Sent", f'<div class="card"><p><b>Sent</b> to {html.escape(row["recipient_name"] or "")}.</p></div>')
+                        return status_page("Sent", f'Delivered to <b>{html.escape(row["recipient_name"] or "")}</b> on '
+                                      f'{html.escape(CHANNEL_NAMES.get(row["channel"], row["channel"].title()))}.',
+                                      200, "success", "send")
 
         links = json.loads(row["links"] or "[]")
         warn = ""
         if links:
-            warn += f'<div class="warn">Contains a link to: {html.escape(", ".join(links))}. Check it\'s one you meant to send.</div>'
+            warn += (f'<div class="notice warning">{icon("link")}<span>Contains a link to {html.escape(", ".join(links))}. '
+                     f'Check it\'s one you meant to send.</span></div>')
         if row["is_group"]:
-            warn += '<div class="warn">This goes to a group. Everyone in it will see it.</div>'
+            warn += f'<div class="notice warning">{icon("users")}<span>This goes to a group. Everyone in it will see it.</span></div>'
         if notice:
-            warn += f'<div class="warn"><b>{html.escape(notice)}</b></div>'
+            warn += f'<div class="notice warning">{icon("clock")}<span><b>{html.escape(notice)}</b></span></div>'
         number = row["recipient_number"] or ("Group chat" if row["is_group"] else "Number not shown by WhatsApp")
+        channel = html.escape(CHANNEL_NAMES.get(row["channel"], row["channel"].title()))
         csrf = web.csrf(request, row["id"])
-        body = f"""<div class="card">
-<div class="k">To</div><div class="v">{html.escape(row["recipient_name"] or "")}</div>
-<div class="k">Number</div><div class="v">{html.escape(number)}</div>
-<div class="k">Channel</div><div class="v">{html.escape(CHANNEL_NAMES.get(row["channel"], row["channel"].title()))}</div>
-<div class="k">Message, exactly as it will be sent</div><pre>{html.escape(row["text"] or "")}</pre>{warn}
-<div class="row">
-<form method="post" style="flex:1;display:flex"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="action" value="discard"><button>Discard</button></form>
-<form method="post" style="flex:1;display:flex"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="action" value="send"><button class="go">Send</button></form>
-</div></div>"""
+        body = f"""<h1>Check and send</h1><p class="lead">Nothing goes out until you tap Send.</p>
+<dl><dt>To</dt><dd>{html.escape(row["recipient_name"] or "")}</dd>
+<dt>Number</dt><dd>{html.escape(number)}</dd>
+<dt>Channel</dt><dd>{channel}</dd></dl>
+<div class="field"><label>Message, exactly as it will be sent</label><div class="message">{html.escape(row["text"] or "")}</div></div>{warn}
+<div class="actions">
+<form method="post"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="action" value="discard"><button class="btn">{icon("trash")}Discard</button></form>
+<form method="post"><input type="hidden" name="csrf" value="{csrf}"><input type="hidden" name="action" value="send"><button class="btn primary">{icon("send")}Send</button></form>
+</div>"""
         return page("Confirm message", body)
 
     @mcp.custom_route("/login", methods=["GET", "POST"])
@@ -406,7 +416,7 @@ def build(s: Settings, *, unipile: Unipile | None = None, store: Store | None = 
     async def signed_in(request: Request) -> Response:
         if not web.current_identity(request):
             return web.login_redirect("/")
-        return message("Signed in", "You're signed in to Switchboard. You can close this tab.")
+        return message("Signed in", "You're signed in to Switchboard. You can close this tab.", 200, "success", "shield")
 
     @mcp.custom_route("/web/callback", methods=["GET"])
     async def web_callback(request: Request) -> Response:

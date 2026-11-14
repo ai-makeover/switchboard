@@ -11,7 +11,7 @@ async def test_icons_served_without_sign_in(harness):
     with anon(mcp, s) as tc:
         for path, ctype in [("/favicon.ico", "image/x-icon"), ("/favicon.svg", "image/svg+xml"),
                             ("/icon.svg", "image/svg+xml"), ("/icon-512.png", "image/png"),
-                            ("/apple-touch-icon.png", "image/png")]:
+                            ("/apple-touch-icon.png", "image/png"), ("/static/alte-haas-regular.ttf", "font/ttf"), ("/static/alte-haas-bold.ttf", "font/ttf")]:
             r = tc.get(path)
             assert r.status_code == 200, path
             assert r.headers["content-type"].startswith(ctype), path
@@ -37,4 +37,4 @@ async def test_pages_carry_brand_and_allow_own_assets(harness):
         r = tc.get("/login")
     assert "By AI Makeover" in r.text and 'href="/favicon.ico"' in r.text
     csp = r.headers["content-security-policy"]
-    assert "img-src 'self'" in csp and "script-src" not in csp
+    assert "img-src 'self'" in csp and "font-src 'self'" in csp and "script-src" not in csp
