@@ -135,6 +135,31 @@ class Unipile:
         self._accounts[channel] = check_raw(acc)
         return self._accounts[channel]
 
+    async def account_status(self, channel: str) -> dict:
+        """Normalised link state: connected, needs_relink, provider_error, connecting, subscription_locked, unknown."""
+        acc = await self.account(channel)
+        if self.v2:
+            a = await self._req("GET", f"/v2/accounts/{seg(acc)}")
+            if a.get("is_locked"):
+                return {"state": "subscription_locked"}
+            st = str(a.get("status") or "").lower()
+            state = {"running": "connected", "disconnected": "needs_relink", "partial": "needs_relink",
+                     "errored": "provider_error", "degraded": "provider_error"}.get(st, "unknown")
+            return {"state": state}
+        a = await self._req("GET", f"/api/v1/accounts/{seg(acc)}")
+        statuses = {str(x.get("status") or "").upper() for x in (a.get("sources") or []) if isinstance(x, dict)}
+        if statuses & {"CREDENTIALS", "DELETED"}:
+            state = "needs_relink"
+        elif statuses & {"ERROR", "STOPPED"}:
+            state = "provider_error"
+        elif "CONNECTING" in statuses:
+            state = "connecting"
+        elif statuses and statuses <= {"OK", "SYNC_SUCCESS", "CREATION_SUCCESS", "RECONNECTED"}:
+            state = "connected"
+        else:
+            state = "unknown"
+        return {"state": state}
+
     # ---- chats -----------------------------------------------------------------------------------
 
     def _norm_chat(self, channel: str, c: dict) -> dict:

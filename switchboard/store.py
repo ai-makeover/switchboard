@@ -35,6 +35,20 @@ CREATE TABLE IF NOT EXISTS sends (
 );
 CREATE INDEX IF NOT EXISTS sends_channel_at ON sends(channel, at);
 CREATE INDEX IF NOT EXISTS drafts_created ON drafts(created_at);
+CREATE TABLE IF NOT EXISTS oauth_clients (client_id TEXT PRIMARY KEY, data TEXT NOT NULL, created_at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS oauth_requests (id TEXT PRIMARY KEY, data TEXT NOT NULL, expires_at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS oauth_codes (code_hash TEXT PRIMARY KEY, data TEXT NOT NULL, expires_at REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+    token_hash TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    client_id TEXT NOT NULL,
+    scopes TEXT NOT NULL,
+    expires_at REAL,
+    pair_hash TEXT,
+    pw_fp TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS login_attempts (ip TEXT NOT NULL, at REAL NOT NULL, ok INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS login_attempts_at ON login_attempts(at);
 """
 
 
@@ -101,6 +115,10 @@ class Store:
     def record_send(self, channel: str, at: float | None = None) -> None:
         self.db.execute("INSERT INTO sends (channel, at) VALUES (?, ?)", (channel, at or time.time()))
 
+    def sends_since(self, channel: str, seconds: int) -> int:
+        return self.db.execute("SELECT COUNT(*) FROM sends WHERE channel=? AND at > ?",
+                               (channel, time.time() - seconds)).fetchone()[0]
+
     def pacing(self, channel: str, limits: dict) -> int:
         """Seconds to wait before this channel may send again (0 = go)."""
         now = time.time()
@@ -116,3 +134,27 @@ class Store:
         if len(day) >= limits["per_day"]:
             waits.append(day[len(day) - limits["per_day"]][0] + 86400 - now)
         return max(0, int(max(waits) + 0.999))
+
+    # ---- password logins: lockout ---------------------------------------------------------------
+
+    LOCK_IP_FAILS, LOCK_IP_WINDOW = 5, 15 * 60          # 5 wrong tries from one address -> 15 min out
+    LOCK_ALL_FAILS, LOCK_ALL_WINDOW = 20, 60 * 60       # 20 wrong tries from anywhere -> 1 hour out
+
+    def login_blocked(self, ip: str) -> int:
+        """Seconds until a login attempt from `ip` is allowed again (0 = allowed)."""
+        now = time.time()
+        q = self.db.execute
+        waits = [0.0]
+        ip_fails = q("SELECT at FROM login_attempts WHERE ip=? AND ok=0 AND at>? ORDER BY at",
+                     (ip, now - self.LOCK_IP_WINDOW)).fetchall()
+        if len(ip_fails) >= self.LOCK_IP_FAILS:
+            waits.append(ip_fails[-self.LOCK_IP_FAILS][0] + self.LOCK_IP_WINDOW - now)
+        all_fails = q("SELECT at FROM login_attempts WHERE ok=0 AND at>? ORDER BY at",
+                      (now - self.LOCK_ALL_WINDOW,)).fetchall()
+        if len(all_fails) >= self.LOCK_ALL_FAILS:
+            waits.append(all_fails[-self.LOCK_ALL_FAILS][0] + self.LOCK_ALL_WINDOW - now)
+        return max(0, int(max(waits) + 0.999))
+
+    def record_login(self, ip: str, ok: bool) -> None:
+        self.db.execute("INSERT INTO login_attempts (ip, at, ok) VALUES (?, ?, ?)", (ip, time.time(), int(ok)))
+        self.db.execute("DELETE FROM login_attempts WHERE at < ?", (time.time() - 86400,))

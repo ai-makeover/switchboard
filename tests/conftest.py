@@ -13,14 +13,14 @@ from switchboard.unipile import Unipile
 
 OWNER = "owner@example.com"
 FAKE_KEY = "sk_test_DO_NOT_LEAK_1234567890"
+PASSWORD = "correct-horse-battery-staple-9f3k"
 
 
 def make_settings(tmp_path, version="v1", **over) -> Settings:
     env = {
         "BASE_URL": "https://sb.example.test",
-        "ALLOWED_EMAILS": OWNER,
-        "GOOGLE_CLIENT_ID": "cid.apps.googleusercontent.com",
-        "GOOGLE_CLIENT_SECRET": "gsecret",
+        "AUTH_MODE": "password",
+        "SWITCHBOARD_PASSWORD": PASSWORD,
         "SWITCHBOARD_SECRET": "x" * 48,
         "UNIPILE_API_VERSION": version,
         "UNIPILE_API_BASE": "https://api9.unipile.test:13000" if version == "v1" else "https://api.unipile.test",
@@ -49,6 +49,7 @@ class FakeUnipile:
         self.calls: list[tuple[str, str, str]] = []
         self.sent: list[tuple[str, str]] = []
         self.fail_with: int | None = None
+        self.account_state = "OK" if version == "v1" else "running"
         # chat raw id -> (chat object)
         if version == "v1":
             self.chats = {
@@ -87,6 +88,8 @@ class FakeUnipile:
 
     def _v1(self, request, path):
         parts = path.strip("/").split("/")  # api v1 chats <id> <sub>
+        if path == "/api/v1/accounts/accWA":
+            return httpx.Response(200, json={"id": "accWA", "type": "WHATSAPP", "sources": [{"id": "s", "status": self.account_state}]})
         if path == "/api/v1/accounts":
             return httpx.Response(200, json={"items": [{"id": "accWA", "type": "WHATSAPP"}]})
         if path == "/api/v1/chats":
@@ -128,6 +131,8 @@ class FakeUnipile:
         return httpx.Response(404)
 
     def _v2(self, request, path):
+        if path == "/v2/accounts/accWA":
+            return httpx.Response(200, json={"id": "accWA", "status": self.account_state, "is_locked": False})
         prefix = "/v2/accWA/chats"
         if not path.startswith(prefix):
             return httpx.Response(404)
@@ -167,7 +172,7 @@ def harness(tmp_path):
         fake = FakeUnipile(version)
         up = Unipile(s, transport=httpx.MockTransport(fake.handler))
         db = Store(tmp_path / "sb.db")
-        who = {"email": OWNER}
-        mcp = build(s, unipile=up, store=db, with_auth=False, owner=lambda: who["email"])
+        who = {"id": "owner" if s.auth_mode == "password" else OWNER}
+        mcp = build(s, unipile=up, store=db, with_auth=False, owner=lambda: who["id"])
         return mcp, fake, db, s, who
     return make

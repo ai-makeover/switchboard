@@ -6,7 +6,6 @@ import pytest
 from fastmcp import Client
 from starlette.testclient import TestClient
 
-from conftest import OWNER
 from switchboard.auth import SESSION_COOKIE
 
 
@@ -17,11 +16,10 @@ async def make_draft(mcp, chat="whatsapp:chatDM1", text="Hi Ann, see you at 3"):
     return url.split("/confirm/")[1], r.structured_content
 
 
-def client(mcp, s, email=OWNER):
+def client(mcp, s, ident="owner"):
     tc = TestClient(mcp.http_app(path="/mcp", stateless_http=True), base_url=s.base_url, follow_redirects=False)
-    if email:
-        web = mcp._switchboard["web"]
-        tc.cookies.set(SESSION_COOKIE, web.signer.dumps({"e": email, "n": "t"}))
+    if ident:
+        tc.cookies.set(SESSION_COOKIE, mcp._switchboard["web"].session_cookie(ident))
     return tc
 
 
@@ -42,13 +40,13 @@ async def test_page_shows_text_name_and_number(harness):
     assert fake.sent == []
 
 
-async def test_signed_out_or_stranger_goes_to_google(harness):
+async def test_signed_out_or_stranger_goes_to_login(harness):
     mcp, fake, db, s, _ = harness("v1")
     token, _ = await make_draft(mcp)
-    for email in (None, "jesse@example.com"):
-        with client(mcp, s, email) as tc:
+    for ident in (None, "jesse@example.com"):
+        with client(mcp, s, ident) as tc:
             r = tc.get(f"/confirm/{token}")
-            assert r.status_code == 302 and r.headers["location"].startswith("https://accounts.google.com/")
+            assert r.status_code == 302 and r.headers["location"].startswith("/login?next=/confirm/")
             r = tc.post(f"/confirm/{token}", data={"action": "send", "csrf": "x"})
             assert r.status_code == 401
     assert fake.sent == []
@@ -156,3 +154,17 @@ async def test_v2_send_path(harness, version):
     assert "Sent" in r.text
     assert fake.sent == [("15550001111@s.whatsapp.net", "hello v2")]
     assert any(p.endswith("/messages/send") and "%40" not in p for _, p, _ in fake.calls)
+
+
+async def test_google_mode_confirm_goes_to_google(harness):
+    from conftest import OWNER
+    mcp, fake, db, s, _ = harness("v1", AUTH_MODE="google", ALLOWED_EMAILS=OWNER,
+                                  GOOGLE_CLIENT_ID="cid.apps.googleusercontent.com", GOOGLE_CLIENT_SECRET="g")
+    token, _ = await make_draft(mcp)
+    with client(mcp, s, None) as tc:
+        r = tc.get(f"/confirm/{token}")
+        assert r.headers["location"].startswith("https://accounts.google.com/")
+    with client(mcp, s, "jesse@example.com") as tc:
+        assert tc.get(f"/confirm/{token}").status_code == 302
+    with client(mcp, s, OWNER) as tc:
+        assert tc.get(f"/confirm/{token}").status_code == 200

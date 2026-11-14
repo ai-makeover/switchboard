@@ -17,9 +17,9 @@ async def test_tool_list_and_annotations(harness):
     mcp, *_ = harness()
     async with Client(mcp) as c:
         tools = {t.name: t for t in await c.list_tools()}
-    assert set(tools) == {"inbox", "waiting_on_me", "read_thread", "list_group_members", "search_contacts", "draft_reply"}
+    assert set(tools) == {"status", "inbox", "waiting_on_me", "read_thread", "list_group_members", "search_contacts", "draft_reply"}
     assert not any("send" in n for n in tools), "there must be no send tool"
-    for n in ("inbox", "waiting_on_me", "read_thread", "list_group_members", "search_contacts"):
+    for n in ("status", "inbox", "waiting_on_me", "read_thread", "list_group_members", "search_contacts"):
         assert tools[n].annotations.read_only_hint is True, n
     assert tools["draft_reply"].annotations.read_only_hint is False
     assert tools["draft_reply"].annotations.destructive_hint is False
@@ -147,10 +147,35 @@ async def test_draft_limits(harness):
 
 async def test_non_owner_refused_on_every_tool(harness):
     mcp, fake, db, s, who = harness("v1")
-    who["email"] = "jesse@example.com"
-    for name, args in [("inbox", {}), ("waiting_on_me", {}), ("read_thread", {"chat_id": "whatsapp:chatDM1"}),
+    who["id"] = None
+    for name, args in [("status", {}), ("inbox", {}), ("waiting_on_me", {}), ("read_thread", {"chat_id": "whatsapp:chatDM1"}),
                        ("list_group_members", {"chat_id": "whatsapp:chatGRP"}), ("search_contacts", {"query": "ann"}),
                        ("draft_reply", {"chat_id": "whatsapp:chatDM1", "text": "hi"})]:
         r, text = await call(mcp, name, **args)
         assert r.is_error and text.startswith("not_allowed"), name
     assert fake.calls == []
+
+
+@pytest.mark.parametrize("version,bad", [("v1", "CREDENTIALS"), ("v2", "disconnected")])
+async def test_status_flags_dropped_whatsapp(harness, version, bad):
+    mcp, fake, *_ = harness(version)
+    r, _ = await call(mcp, "status")
+    d = r.structured_content
+    assert d["ok"] is True and d["heartbeat"].startswith("Switchboard OK: Whatsapp connected")
+    assert "30 WhatsApp sends left today" in d["heartbeat"]
+    fake.account_state = bad
+    r, _ = await call(mcp, "status")
+    d = r.structured_content
+    assert d["ok"] is False and d["heartbeat"].startswith("Switchboard ALERT")
+    assert d["channels"][0]["state"] == "needs_relink"
+    assert "Linked devices" in d["channels"][0]["fix"] and "scan the QR" in d["heartbeat"]
+
+
+async def test_status_key_rejected_is_plain(harness):
+    mcp, fake, *_ = harness("v1")
+    fake.fail_with = 401
+    r, text = await call(mcp, "status")
+    assert not r.is_error
+    d = r.structured_content
+    assert d["channels"][0]["state"] == "key_rejected" and "UNIPILE_API_KEY" in d["heartbeat"]
+    assert FAKE_KEY not in json.dumps(d)

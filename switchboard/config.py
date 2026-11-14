@@ -27,12 +27,18 @@ def _int(name: str, default: int) -> int:
     return int(raw) if raw else default
 
 
+AUTH_MODES = ("password", "google", "github")
+MIN_PASSWORD = 20
+
+
 @dataclass
 class Settings:
     base_url: str
-    allowed_emails: frozenset[str]
-    google_client_id: str
-    google_client_secret: str
+    auth_mode: str
+    allowed: frozenset[str]          # identities: "owner" (password), emails (google), "github:<login>" (github)
+    password: str
+    oauth_client_id: str
+    oauth_client_secret: str
     secret: str
     unipile_version: str
     unipile_base: str
@@ -55,9 +61,26 @@ class Settings:
         if not base:
             raise ConfigError("BASE_URL is unset (or deploy on Railway with a public domain)")
 
-        emails = frozenset(e.strip().lower() for e in env("ALLOWED_EMAILS", "").split(",") if e.strip())
-        if not emails:
-            raise ConfigError("ALLOWED_EMAILS is empty: refusing to start with nobody allowed in")
+        mode = env("AUTH_MODE", "password").strip().lower() or "password"
+        if mode not in AUTH_MODES:
+            raise ConfigError("AUTH_MODE must be password, google or github")
+        password, client_id, client_secret = "", "", ""
+        if mode == "password":
+            password = env("SWITCHBOARD_PASSWORD", "").strip()
+            if len(password) < MIN_PASSWORD:
+                raise ConfigError(f"SWITCHBOARD_PASSWORD must be at least {MIN_PASSWORD} characters")
+            allowed = frozenset({"owner"})
+        elif mode == "google":
+            allowed = frozenset(e.strip().lower() for e in env("ALLOWED_EMAILS", "").split(",") if e.strip())
+            client_id, client_secret = env("GOOGLE_CLIENT_ID", "").strip(), env("GOOGLE_CLIENT_SECRET", "").strip()
+        else:
+            allowed = frozenset("github:" + u.strip().lower().lstrip("@")
+                                for u in env("ALLOWED_GITHUB_USERS", "").split(",") if u.strip())
+            client_id, client_secret = env("GITHUB_CLIENT_ID", "").strip(), env("GITHUB_CLIENT_SECRET", "").strip()
+        if not allowed:
+            raise ConfigError("the allowlist is empty: refusing to start with nobody allowed in")
+        if mode != "password" and not (client_id and client_secret):
+            raise ConfigError(f"{mode.upper()}_CLIENT_ID and {mode.upper()}_CLIENT_SECRET are required in {mode} mode")
 
         version = env("UNIPILE_API_VERSION", "v1").strip().lower()
         if version not in ("v1", "v2"):
@@ -92,8 +115,6 @@ class Settings:
             }
 
         required = {
-            "GOOGLE_CLIENT_ID": env("GOOGLE_CLIENT_ID", "").strip(),
-            "GOOGLE_CLIENT_SECRET": env("GOOGLE_CLIENT_SECRET", "").strip(),
             "UNIPILE_API_KEY": env("UNIPILE_API_KEY", "").strip(),
             "SWITCHBOARD_SECRET": env("SWITCHBOARD_SECRET", "").strip(),
         }
@@ -105,9 +126,11 @@ class Settings:
 
         return cls(
             base_url=base.rstrip("/"),
-            allowed_emails=emails,
-            google_client_id=required["GOOGLE_CLIENT_ID"],
-            google_client_secret=required["GOOGLE_CLIENT_SECRET"],
+            auth_mode=mode,
+            allowed=allowed,
+            password=password,
+            oauth_client_id=client_id,
+            oauth_client_secret=client_secret,
             secret=required["SWITCHBOARD_SECRET"],
             unipile_version=version,
             unipile_base=ubase,

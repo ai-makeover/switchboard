@@ -28,7 +28,8 @@ def test_email_allowed():
 @pytest.fixture
 def provider(tmp_path):
     from key_value.aio.stores.memory import MemoryStore
-    s = make_settings(tmp_path)
+    s = make_settings(tmp_path, AUTH_MODE="google", ALLOWED_EMAILS=OWNER,
+                      GOOGLE_CLIENT_ID="cid.apps.googleusercontent.com", GOOGLE_CLIENT_SECRET="g")
     p = build_mcp_auth(s, client_storage=MemoryStore())
     p.set_mcp_path("/mcp")
     return p
@@ -106,6 +107,22 @@ def test_redirect_allowlist_and_scopes(provider):
 def test_config_refuses_empty_allowlist(tmp_path):
     from switchboard.config import ConfigError
     with pytest.raises(ConfigError):
-        make_settings(tmp_path, ALLOWED_EMAILS="")
+        make_settings(tmp_path, AUTH_MODE="google", ALLOWED_EMAILS="", GOOGLE_CLIENT_ID="x", GOOGLE_CLIENT_SECRET="y")
+    with pytest.raises(ConfigError):
+        make_settings(tmp_path, AUTH_MODE="google", ALLOWED_EMAILS=OWNER)  # no client
+    with pytest.raises(ConfigError):
+        make_settings(tmp_path, SWITCHBOARD_PASSWORD="too-short")
     with pytest.raises(ConfigError):
         make_settings(tmp_path, SWITCHBOARD_SECRET="short")
+
+
+def test_github_mode(tmp_path):
+    from switchboard.auth import AllowlistGitHubProvider, identity_from_claims
+    from key_value.aio.stores.memory import MemoryStore
+    s = make_settings(tmp_path, AUTH_MODE="github", ALLOWED_GITHUB_USERS="@Wombyz", GITHUB_CLIENT_ID="i", GITHUB_CLIENT_SECRET="s")
+    assert s.allowed == frozenset({"github:wombyz"})
+    p = build_mcp_auth(s, client_storage=MemoryStore())
+    assert isinstance(p, AllowlistGitHubProvider)
+    assert p._sb_ok({"login": "Wombyz"}) and not p._sb_ok({"login": "jesse"}) and not p._sb_ok({})
+    assert identity_from_claims("password", {"sub": "owner"}) == "owner"
+    assert identity_from_claims("password", {"sub": "someone"}) is None
