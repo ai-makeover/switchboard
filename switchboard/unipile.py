@@ -279,7 +279,8 @@ class Unipile:
             out.append({
                 "name": a.get("name"),
                 "saved_as": spec.get("contact_name") if isinstance(spec, dict) else None,
-                "number": phone_of(a.get("public_identifier"), a.get("provider_id")),
+                "number": phone_of(a.get("public_identifier"), spec.get("phone_number") if isinstance(spec, dict) else None,
+                                   a.get("provider_id")),
                 "is_admin": bool((spec or {}).get("is_admin")) if isinstance(spec, dict) else False,
                 "is_self": bool(a.get("is_self")),
             })

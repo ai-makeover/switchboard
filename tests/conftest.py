@@ -119,7 +119,8 @@ class FakeUnipile:
                     return httpx.Response(200, json={"items": [
                         {"id": "a0", "provider_id": "15550009999@s.whatsapp.net", "name": "Owner", "is_self": 1},
                         {"id": "a1", "provider_id": "15550001111@s.whatsapp.net", "name": "Ann Smith"},
-                        {"id": "a2", "provider_id": "987654321098765@lid", "name": "Hidden Person"},
+                        {"id": "a2", "provider_id": "987654321098765@lid", "name": "Hidden Person", "specifics": {"phone_number": "hidden", "lid": "x"}},
+                        {"id": "a4", "provider_id": "111222333444555@lid", "name": "Spec Phone", "specifics": {"phone_number": "+15550003333"}},
                         {"id": "a3", "provider_id": "123456789012345@lid", "name": "Bob", "public_identifier": "15550002222"},
                     ]})
                 return httpx.Response(200, json={"items": [
